@@ -2,14 +2,20 @@
   "name": "DevPleno_Chat",
   "version": "1.0.0",
   "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
   "repository": "https://github.com/RenatoSiqueira/DevPleno_Chat.git",
   "author": "Renato Siqueira <renatoelysiqueira@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "body-parser": "^1.19.0",
+    "dotenv": "^8.1.0",
     "ejs": "^2.7.1",
     "express": "^4.17.1",
     "express-session": "^1.16.2",
+    "express-socket.io-session": "^1.3.5",
     "mongoose": "^5.7.1",
     "socket.io": "^2.2.0"
   }

@@ -9,12 +9,16 @@ const app = express()
 const http = require('http').Server(app)
 const io = require('socket.io')(http)
 
+const MONGOSERVER = process.env.MONGOSERVER || 'mongodb://localhost/chat-socket-io'
+const REDISSERVER = process.env.REDISSERVER || 'localhost'
+
+const redis = require('socket.io-redis')
+io.adapter(redis({ host: REDISSERVER }))
+
 const Controller = require('./controllers')
 
 const Room = require('./models/room')
 const Message = require('./models/message')
-
-const MONGOSERVER = process.env.MONGOSERVER || 'mongodb://localhost/chat-socket-io'
 
 mongoose.Promise = global.Promise
 
@@ -29,7 +33,16 @@ app.set('view engine', 'ejs')
 app.use(express.static('public'))
 app.use(bodyParser.urlencoded())
 app.use(expressSession)
+
 io.use(sharedSession(expressSession, { autoSave: true }))
+io.use((socket, next) => {
+    const session = socket.handshake.session
+    if (!session.user) {
+        next(new Error('Auth Failed'))
+    } else {
+        next()
+    }
+})
 
 app
     .get('/', Controller.Home)
@@ -78,6 +91,21 @@ io.on('connection', socket => {
             })
         //console.log(msg)
         //console.log(socket.handshake.session)
+    })
+
+    socket.on('sendAudio', msg => {
+        const message = new Message({
+            author: socket.handshake.session.user.name,
+            when: new Date(),
+            msgType: 'audio',
+            message: msg.data,
+            room: msg.room
+        })
+        message
+            .save()
+            .then(() => {
+                io.to(msg.room).emit('newAudio', message)
+            })
     })
 })
 

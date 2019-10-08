@@ -38,14 +38,8 @@
         <form id="email-form" name="email-form" data-name="Email Form" class="form">
           <textarea id="msg" name="msg" maxlength="5000" placeholder="Digite sua mensagem e pressione &lt;Enter&gt;"
             autofocus="true" class="msg w-input"></textarea>
-          <a href="#" class="send-audio w-button">Enviar<br>Áudio</a>
+          <button type="button" class="send-audio w-button">Enviar<br>Áudio</button>
         </form>
-        <div class="w-form-done">
-          <div>Thank you! Your submission has been received!</div>
-        </div>
-        <div class="w-form-fail">
-          <div>Oops! Something went wrong while submitting the form.</div>
-        </div>
       </div>
     </div>
   </div>
@@ -57,6 +51,51 @@
     $(function () {
       const socket = io()
       let selectedRoom = ''
+      let mediaRecorder
+      let audioPermission = false
+
+      navigator
+        .mediaDevices
+        .getUserMedia({ audio: true })
+        .then(stream => {
+          audioPermission = true
+          mediaRecorder = new MediaRecorder(stream)
+          let chunks = []
+
+          mediaRecorder.ondataavailable = data => {
+            //data received
+            chunks.push(data.data)
+          }
+          mediaRecorder.onstop = () => {
+            // data stopped
+            const reader = new window.FileReader()
+            const blob = new Blob(chunks, { type: 'audio/ogg; codec=opus' })
+            reader.readAsDataURL(blob)
+            reader.onloadend = () => {
+              socket.emit('sendAudio', {
+                data: reader.result,
+                room: selectedRoom
+              })
+            }
+
+            chunks = []
+          }
+        }, err => {
+          mediaRecorder = null
+          audioPermission = false
+        })
+
+      $('.send-audio')
+        .mouseup(function () {
+          if (audioPermission) {
+            mediaRecorder.stop()
+          }
+        })
+        .mousedown(function () {
+          if (audioPermission && selectedRoom !== '') {
+            mediaRecorder.start()
+          }
+        })
 
       $('.msg').keyup(function (key) {
         if (selectedRoom !== '' && key.keyCode === 13) {
@@ -72,17 +111,31 @@
         const roomId = $(this).attr('data-id')
         socket.emit('join', roomId)
         selectedRoom = roomId
+        $('#' + roomId + ' .notifications').show()
+        $('#' + roomId + ' .notifications span').text('0')
       })
 
       const addRoom = (id, roomName) => {
-        $('.room-list').append('<li data-id="' + id + '" class="room-item">' + roomName + ' <span class="notifications">(2)</span></li>')
+        $('.room-list').append('<li id="' + id + '" data-id="' + id + '" class="room-item">' + roomName + ' <span class="notifications">(<span>0</span>)</span></li>')
+        $('#' + id + ' .notifications').hide()
+      }
+
+      const renderMsg = (type, msg) => {
+        if (type === 'text')
+          return msg
+        else if (type === 'audio') {
+          return `
+            <audio src="${msg}" controls="true"></audio>
+          `
+        }
+        return ''
       }
 
       const addMsg = (msg) => {
         const html = `
         <div class="message">
           <span class="author">${msg.author}</span><br>
-          <span class="msg-body">${msg.message}</span>
+          <span class="msg-body">${renderMsg(msg.msgType, msg.message)}</span>
         </div>`
         $('.messages').append(html)
       }
@@ -100,6 +153,22 @@
           addMsg(msg)
         } else {
           // atualizar contador de msgs nao lidas
+          const id = msg.room
+          let count = parseInt($('#' + id + ' .notifications span').text())
+          count++
+          $('#' + id + ' .notifications span').text(count)
+        }
+      })
+
+      socket.on('newAudio', msg => {
+        if (selectedRoom === msg.room) {
+          addMsg(msg)
+        } else {
+          // atualizar contador de msgs nao lidas
+          const id = msg.room
+          let count = parseInt($('#' + id + ' .notifications span').text())
+          count++
+          $('#' + id + ' .notifications span').text(count)
         }
       })
 

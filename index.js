@@ -11,6 +11,7 @@ const io = require('socket.io')(http)
 
 const MONGOSERVER = process.env.MONGOSERVER || 'mongodb://localhost/chat-socket-io'
 const REDISSERVER = process.env.REDISSERVER || 'localhost'
+const PORT = process.env.PORT || 3001
 
 const redis = require('socket.io-redis')
 io.adapter(redis({ host: REDISSERVER }))
@@ -46,7 +47,7 @@ io.use((socket, next) => {
 
 app
     .get('/', Controller.Home)
-    .post('/', Controller.AuthUser)
+    .post('/auth', Controller.AuthUser)
     .get('/room', Controller.Rooms)
 
 
@@ -112,5 +113,5 @@ io.on('connection', socket => {
 mongoose
     .connect(MONGOSERVER, { useNewUrlParser: true })
     .then(() => {
-        http.listen(3000, () => console.log('Chat running'))
+        http.listen(PORT, () => console.log('Chat running'))
     })

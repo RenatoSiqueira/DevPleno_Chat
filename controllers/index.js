@@ -1,10 +1,19 @@
+const jwt = require('jsonwebtoken')
+const jwtSecret = process.env.JWS_SECRET || 'socketio-react'
+
 const Home = (req, res) => res.render('home')
 
-const AuthUser = (req, res) => {
+const AuthUser = async (req, res) => {
+    /*
     req.session.user = {
         name: req.body.name
     }
     res.redirect('/room')
+    */
+    const token = jwt.sign({
+        name: req.body.name
+    }, jwtSecret)
+    res.send({ token })
 }
 
 const Rooms = (req, res) => {

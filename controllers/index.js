@@ -11,7 +11,9 @@ const AuthUser = async (req, res) => {
     res.redirect('/room')
     */
     const token = jwt.sign({
-        name: req.body.name
+        data: {
+            name: req.body.name
+        }
     }, jwtSecret)
     res.send({ token })
 }

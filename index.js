@@ -4,6 +4,9 @@ const mongoose = require('mongoose')
 const bodyParser = require('body-parser')
 const session = require('express-session')
 const sharedSession = require('express-socket.io-session')
+const cors = require('cors')
+const jwt = require('jsonwebtoken')
+const jwtSecret = process.env.JWS_SECRET || 'socketio-react'
 
 const app = express()
 const http = require('http').Server(app)
@@ -31,18 +34,28 @@ const expressSession = session({
 })
 
 app.set('view engine', 'ejs')
+app.use(cors())
 app.use(express.static('public'))
 app.use(bodyParser.urlencoded())
+app.use(bodyParser.json())
 app.use(expressSession)
 
 io.use(sharedSession(expressSession, { autoSave: true }))
-io.use((socket, next) => {
-    const session = socket.handshake.session
-    if (!session.user) {
-        next(new Error('Auth Failed'))
+io.use(async (socket, next) => {
+    const isValid = await jwt.verify(socket.handshake.query.token, jwtSecret)
+    if (!socket.handshake.query.token || !isValid) {
+        next(new Error('Auth failed.'))
     } else {
         next()
     }
+    /*
+     const session = socket.handshake.session
+     if (!session.user) {
+         next(new Error('Auth Failed'))
+     } else {
+         next()
+     }
+     */
 })
 
 app
@@ -77,9 +90,11 @@ io.on('connection', socket => {
             })
     })
 
-    socket.on('sendMsg', msg => {
+    socket.on('sendMsg', async msg => {
+        const decoded = await jwt.decode(socket.handshake.query.token, jwtSecret)
         const message = new Message({
-            author: socket.handshake.session.user.name,
+            //author: socket.handshake.session.user.name,
+            author: decoded.data.name,
             when: new Date(),
             msgType: 'text',
             message: msg.msg,
